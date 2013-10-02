@@ -1,7 +1,9 @@
 
 import pylase as ol
 
+import os
 import sys
+import bz2
 
 if len(sys.argv) <=1:
     print(sys.argv[0]+" <banner_text> <ilda_txt_file> [command_string]")
@@ -78,52 +80,57 @@ def render_frame():
 
 for count in range(repeatCount):
     currentFrame = 0
-    with open(ildTxtFilename,"r") as f:
-        for line in f:
-            tokens = line.split()
+    fileName, fileExtension = os.path.splitext(ildTxtFilename)
+    if fileExtension.lower() == ".bz2":
+        f = bz2.BZ2File(ildTxtFilename,"r")
+    else:
+        f = open(ildTxtFilename,"r")
+
+    for line in f:
+        tokens = line.split()
+
+        #print tokens
+
+        if len(tokens) < 1:
+            continue
+
+        if tokens[0] == "palette":
+            render_frame()
+            continue
+
+        if tokens[0] == "frame":
+            render_frame()
+
+            currentFrame += 1
+            if currentFrame >= startFrame:
+                if endFrame > 0 and currentFrame > endFrame:
+                    break
+                renderFrame = True
+                openPath = False
+                ol.loadIdentity()
+                ol.scale((1.0/32768, 1.0/32768))
+                ol.translate((0, 0))
+                if banner != "":
+                    ol.drawString(font, (-w/2,yoff), fsize, ol.C_GREEN, banner)
+            continue
+
+        if is_number(tokens[0]):
+            if renderFrame:
+                x = float(tokens[0])
+                y = float(tokens[1])
+                palette_i = int(tokens[2])
     
-            #print tokens
+                if not openPath:
+                    ol.begin(0)
+                    openPath = True
+                elif palette_i < 0:
+                    ol.end()
+                    ol.begin(0)
+                    openPath = True
 
-            if len(tokens) < 1:
-                continue
+                ol.vertex((x,y),ol.C_RED)
+            continue
     
-            if tokens[0] == "palette":
-                render_frame()
-                continue
-
-            if tokens[0] == "frame":
-                render_frame()
-
-                currentFrame += 1
-                if currentFrame >= startFrame:
-                    if endFrame > 0 and currentFrame > endFrame:
-                        break
-                    renderFrame = True
-                    openPath = False
-                    ol.loadIdentity()
-                    ol.scale((1.0/32768, 1.0/32768))
-                    ol.translate((0, 0))
-                    if banner != "":
-                        ol.drawString(font, (-w/2,yoff), fsize, ol.C_GREEN, banner)
-                continue
-
-            if is_number(tokens[0]):
-                if renderFrame:
-                    x = float(tokens[0])
-                    y = float(tokens[1])
-                    palette_i = int(tokens[2])
-    
-                    if not openPath:
-                        ol.begin(0)
-                        openPath = True
-                    elif palette_i < 0:
-                        ol.end()
-                        ol.begin(0)
-                        openPath = True
-
-                    ol.vertex((x,y),ol.C_RED)
-                    continue
-
     render_frame()
 
 ol.shutdown()
